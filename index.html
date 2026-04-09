@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+<title>Tank-Planer</title>
+
+<style>
+body {
+  font-family: -apple-system, system-ui, sans-serif;
+  margin: 0;
+  padding: 1.5rem;
+  background: #161616;
+  color: #fff;
+}
+
+h1 {
+  text-align: center;
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+}
+
+.card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+button {
+  width: 100%;
+  padding: 0.9rem;
+  border: none;
+  border-radius: 16px;
+  background: rgba(255, 10, 10, 0.85);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+button:hover {
+  transform: scale(1.02);
+}
+
+.station {
+  padding: 0.9rem;
+  border-radius: 14px;
+  margin-bottom: 0.6rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: 0.2s;
+}
+
+.station:hover {
+  background: rgba(0,255,64,0.08);
+}
+
+.cheapest {
+  border: 1px solid rgba(0,255,64,0.8);
+}
+
+.price {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-top: 0.2rem;
+}
+
+.small {
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Tank-Planer</h1>
+
+<div class="card">
+  <button onclick="updatePrices()">Preise aktualisieren</button>
+  <div id="lastUpdated" class="small" style="margin-top:0.6rem;"></div>
+</div>
+
+<div id="stations"></div>
+
+<script>
+const API_KEY = "384f0ab6-7241-96b5-539f-12bec0b1d310";
+
+
+const MY_STATIONS = [
+  { id: "5d7f3329-7a3f-4dcb-ab3d-4d6d757ae1c0", name: "Walther Kreisel" },
+  { id: "53e1e50e-dc52-4150-b404-6fcc81eca89c", name: "Esso Einkaufsmeile" },
+  { id: "ab5c8843-22b9-4fc4-82a1-028f33b37d04", name: "Walther Schlachthof" },
+  { id: "51d4b486-a095-1aa0-e100-80009459e03a", name: "Jet McDonalds" },
+  { id: "d6d40bb4-fe48-46b8-b055-d3e59ae49589", name: "Walther Schule" },
+  { id: "f7624aa5-3cfd-473e-b89c-3740b48a8fcf", name: "Avia Gofit" },
+  { id: "c7e55829-fcf0-43d2-8bb7-ed0400c23405", name: "Walther Nüdlingen" },
+  { id: "76a49899-b0f5-4738-8126-4aa71e5cb2f0", name: "Esso Stangenroth" },
+  { id: "0fdcfef5-75e0-4f5b-a444-5281c7c73d33", name: "Aral Burkadroth" },
+  { id: "e83d7841-fce8-4b29-bdaa-85c2ca061532", name: "Aral Euerdorf" },
+  { id: "371fbe9a-1e56-4bd8-9213-eb6d3a3ec0c5", name: "Walther Oberthulba" },
+  { id: "4924d8e1-ee25-4a48-a7fc-4f705ac81166", name: "HEM Örlenbach" },
+  { id: "9c14e9bc-6add-41ea-8283-3c8543164984", name: "Avia Münnerstadt" },
+  { id: "24b6509d-2622-4998-bcc3-e75793e90435", name: "Aral Münnerstadt" }
+];
+
+const currency = new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "EUR"
+});
+
+
+
+function getStationName(id) {
+  const found = MY_STATIONS.find(s => s.id === id);
+  return found ? found.name : null;
+}
+
+function updateLastUpdated() {
+  const el = document.getElementById("lastUpdated");
+  const now = new Date();
+
+  el.textContent =
+    "Letztes Update: " +
+    now.toLocaleString("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+}
+
+async function updatePrices() {
+
+const url = new URL("https://creativecommons.tankerkoenig.de/json/list.php");
+
+url.searchParams.set("lat", "50.1944");
+url.searchParams.set("lng", "10.0633");
+url.searchParams.set("rad", "15");
+url.searchParams.set("type", "e5");
+url.searchParams.set("sort", "price");
+url.searchParams.set("apikey", API_KEY);
+
+try {
+  const res = await fetch(url.toString());
+  const data = await res.json();
+
+  if (!data || data.ok === false) {
+    throw new Error("API Fehler");
+  }
+
+  const apiStations = data.stations || [];
+
+  
+  const stations = MY_STATIONS
+    .map(my => {
+      const api = apiStations.find(s => String(s.id) === String(my.id));
+
+      if (!api || !api.isOpen || typeof api.price !== "number") {
+        return null;
+      }
+
+      return {
+        id: my.id,
+        name: my.name,
+        price: Number(api.price)
+      };
+    })
+    .filter(Boolean) 
+    .sort((a, b) => a.price - b.price); 
+  render(stations);
+  updateLastUpdated();
+
+} catch (e) {
+  console.error(e);
+  document.getElementById("stations").innerHTML =
+    "<div class='card'>Fehler beim Laden</div>";
+}
+}
+
+function render(stations) {
+  const el = document.getElementById("stations");
+
+  if (!stations.length) {
+    el.innerHTML = "<div class='card'>Keine offenen Tankstellen</div>";
+    return;
+  }
+
+  el.innerHTML = stations.map((s, i) => `
+    <div class="station ${i === 0 ? "cheapest" : ""}">
+      <b>${s.name}</b>
+      <div class="price">${currency.format(s.price)}</div>
+    </div>
+  `).join("");
+}
+
+updatePrices();
+</script>
+
+</body>
+</html>
