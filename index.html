@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-
 <title>Tank-Planer</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 body {
@@ -27,6 +28,7 @@ h1 {
   border-radius: 18px;
   padding: 1rem;
   margin-bottom: 1rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 }
 
 button {
@@ -45,10 +47,16 @@ button:hover {
   transform: scale(1.02);
 }
 
+button:disabled {
+  opacity: 0.65;
+  cursor: default;
+  transform: none;
+}
+
 .station {
-  padding: 0.9rem;
+  padding: 0.95rem;
   border-radius: 14px;
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.75rem;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.08);
   transition: 0.2s;
@@ -60,17 +68,85 @@ button:hover {
 
 .cheapest {
   border: 1px solid rgba(0,255,64,0.8);
+  background: rgba(0,255,64,0.07);
+}
+
+.station-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.station-name {
+  font-weight: 700;
 }
 
 .price {
   font-size: 1.2rem;
   font-weight: 700;
-  margin-top: 0.2rem;
+  white-space: nowrap;
 }
 
 .small {
   font-size: 0.85rem;
-  opacity: 0.6;
+  opacity: 0.72;
+}
+
+.meta {
+  margin-top: 0.45rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.badge-good {
+  background: rgba(0,255,100,0.12);
+  border-color: rgba(0,255,100,0.22);
+  color: #86ffb1;
+}
+
+.badge-warn {
+  background: rgba(255,208,0,0.12);
+  border-color: rgba(255,208,0,0.22);
+  color: #ffd866;
+}
+
+.badge-bad {
+  background: rgba(255,90,90,0.12);
+  border-color: rgba(255,90,90,0.22);
+  color: #ff9f9f;
+}
+
+.section-title {
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.section-main {
+  font-size: 1.08rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 900px) {
+  .grid-2 {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 </style>
 </head>
@@ -80,15 +156,42 @@ button:hover {
 <h1>Tank-Planer</h1>
 
 <div class="card">
-  <button onclick="updatePrices()">Preise aktualisieren</button>
+  <button id="updateButton" onclick="updatePrices()">Preise aktualisieren</button>
   <div id="lastUpdated" class="small" style="margin-top:0.6rem;"></div>
+  <div id="saveStatus" class="small" style="margin-top:0.25rem;"></div>
+</div>
+
+<div class="grid grid-2">
+  <div id="recommendationCard" class="card">
+    <div class="section-title">Empfehlung</div>
+    <div class="small">Lade Auswertung…</div>
+  </div>
+
+  <div id="bestTimeTodayCard" class="card">
+    <div class="section-title">Beste Zeit heute</div>
+    <div class="small">Lade Auswertung…</div>
+  </div>
+</div>
+
+<div id="bestTimeOverallCard" class="card">
+  <div class="section-title">Beste Zeit allgemein</div>
+  <div class="small">Lade Auswertung…</div>
 </div>
 
 <div id="stations"></div>
 
 <script>
-const API_KEY = "384f0ab6-7241-96b5-539f-12bec0b1d310";
+const { createClient } = window.supabase;
 
+const API_KEY = "384f0ab6-7241-96b5-539f-12bec0b1d310";
+const SUPABASE_URL = "https://qweqzympheidhtobszfs.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3ZXF6eW1waGVpZGh0b2JzemZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwMDU0NDYsImV4cCI6MjA5MTU4MTQ0Nn0.eD16E7r7NCrUXAs4opBNwSCbwb79kfHZ-oOG2FGTr8w";
+
+const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const SAVE_COOLDOWN_MINUTES = 15;
+const SAVE_COOLDOWN_MS = SAVE_COOLDOWN_MINUTES * 60 * 1000;
+const HISTORY_DAYS = 28;
 
 const MY_STATIONS = [
   { id: "5d7f3329-7a3f-4dcb-ab3d-4d6d757ae1c0", name: "Walther Kreisel" },
@@ -107,16 +210,30 @@ const MY_STATIONS = [
   { id: "24b6509d-2622-4998-bcc3-e75793e90435", name: "Aral Münnerstadt" }
 ];
 
+const STATION_NAME_MAP = Object.fromEntries(MY_STATIONS.map(s => [s.id, s.name]));
+
+const DAY_NAMES = [
+  "Sonntag",
+  "Montag",
+  "Dienstag",
+  "Mittwoch",
+  "Donnerstag",
+  "Freitag",
+  "Samstag"
+];
+
 const currency = new Intl.NumberFormat("de-DE", {
   style: "currency",
   currency: "EUR"
 });
 
+function pad2(value) {
+  return String(value).padStart(2, "0");
+}
 
-
-function getStationName(id) {
-  const found = MY_STATIONS.find(s => s.id === id);
-  return found ? found.name : null;
+function formatWindow(startHour, duration = 2) {
+  const endHour = (startHour + duration) % 24;
+  return `${pad2(startHour)}:00–${pad2(endHour)}:00`;
 }
 
 function updateLastUpdated() {
@@ -133,55 +250,344 @@ function updateLastUpdated() {
     });
 }
 
-async function updatePrices() {
+function setSaveStatus(text) {
+  document.getElementById("saveStatus").textContent = text;
+}
 
-const url = new URL("https://creativecommons.tankerkoenig.de/json/list.php");
+function setLoadingState(isLoading) {
+  const btn = document.getElementById("updateButton");
+  if (!btn) return;
+  btn.disabled = isLoading;
+}
 
-url.searchParams.set("lat", "50.1944");
-url.searchParams.set("lng", "10.0633");
-url.searchParams.set("rad", "15");
-url.searchParams.set("type", "e5");
-url.searchParams.set("sort", "price");
-url.searchParams.set("apikey", API_KEY);
+function getWindowStart(hour) {
+  return Math.floor(hour / 2) * 2;
+}
 
-try {
-  const res = await fetch(url.toString());
-  const data = await res.json();
+function buildStationHistoryMap(rows) {
+  const map = new Map();
 
-  if (!data || data.ok === false) {
-    throw new Error("API Fehler");
+  for (const row of rows) {
+    if (!row.station_id || typeof row.price !== "number") continue;
+
+    if (!map.has(row.station_id)) {
+      map.set(row.station_id, []);
+    }
+
+    map.get(row.station_id).push(row);
   }
 
-  const apiStations = data.stations || [];
+  return map;
+}
 
-  
-  const stations = MY_STATIONS
-    .map(my => {
-      const api = apiStations.find(s => String(s.id) === String(my.id));
+function getLastTwoPricesForStation(rows, stationId) {
+  const filtered = rows
+    .filter(r => r.station_id === stationId && typeof r.price === "number")
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-      if (!api || !api.isOpen || typeof api.price !== "number") {
-        return null;
+  const uniquePrices = [];
+  for (const row of filtered) {
+    if (!uniquePrices.length || uniquePrices[uniquePrices.length - 1] !== row.price) {
+      uniquePrices.push(row.price);
+    }
+    if (uniquePrices.length === 2) break;
+  }
+
+  return uniquePrices;
+}
+
+function getTrendLabel(currentPrice, lastTwoPrices) {
+  if (!lastTwoPrices || lastTwoPrices.length < 2) return "↔ keine Trenddaten";
+
+  const previous = lastTwoPrices[1];
+  const diff = currentPrice - previous;
+
+  if (diff <= -0.005) return "↘ fällt";
+  if (diff >= 0.005) return "↗ steigt";
+  return "→ stabil";
+}
+
+function getCurrentValueBadge(currentPrice, avg) {
+  if (typeof avg !== "number") {
+    return { text: "noch keine Einordnung", cls: "" };
+  }
+
+  const diff = currentPrice - avg;
+
+  if (diff <= -0.015) {
+    return { text: "aktuell günstig", cls: "badge-good" };
+  }
+  if (diff <= 0.015) {
+    return { text: "aktuell normal", cls: "badge-warn" };
+  }
+  return { text: "aktuell teuer", cls: "badge-bad" };
+}
+
+function aggregateWindows(rows, filterFn = null) {
+  const buckets = new Map();
+
+  for (const row of rows) {
+    if (typeof row.price !== "number") continue;
+    if (filterFn && !filterFn(row)) continue;
+
+    const startHour = getWindowStart(row.hour);
+    const key = `${row.day}-${startHour}`;
+
+    if (!buckets.has(key)) {
+      buckets.set(key, {
+        day: row.day,
+        startHour,
+        prices: []
+      });
+    }
+
+    buckets.get(key).prices.push(row.price);
+  }
+
+  let best = null;
+
+  for (const bucket of buckets.values()) {
+    if (bucket.prices.length < 2) continue;
+
+    const avg = bucket.prices.reduce((sum, p) => sum + p, 0) / bucket.prices.length;
+    const candidate = {
+      day: bucket.day,
+      startHour: bucket.startHour,
+      avg,
+      samples: bucket.prices.length
+    };
+
+    if (!best || candidate.avg < best.avg) {
+      best = candidate;
+    }
+  }
+
+  return best;
+}
+
+function aggregateWindowsForStation(rows, stationId) {
+  return aggregateWindows(rows, row => row.station_id === stationId);
+}
+
+function getCurrentWindowAverageForStation(rows, stationId, day, hour) {
+  const startHour = getWindowStart(hour);
+  const filtered = rows.filter(r =>
+    r.station_id === stationId &&
+    r.day === day &&
+    getWindowStart(r.hour) === startHour &&
+    typeof r.price === "number"
+  );
+
+  if (filtered.length < 2) return null;
+
+  return filtered.reduce((sum, r) => sum + r.price, 0) / filtered.length;
+}
+
+function getCurrentWindowAverageOverall(rows, day, hour) {
+  const startHour = getWindowStart(hour);
+  const filtered = rows.filter(r =>
+    r.day === day &&
+    getWindowStart(r.hour) === startHour &&
+    typeof r.price === "number"
+  );
+
+  if (filtered.length < 2) return null;
+
+  return filtered.reduce((sum, r) => sum + r.price, 0) / filtered.length;
+}
+
+async function fetchHistoryRows() {
+  const since = new Date();
+  since.setDate(since.getDate() - HISTORY_DAYS);
+
+  const { data, error } = await supabaseClient
+    .from("prices")
+    .select("station_id,price,hour,day,created_at")
+    .gte("created_at", since.toISOString())
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+async function getRecentRowsForSaveCheck() {
+  const since = new Date(Date.now() - SAVE_COOLDOWN_MS);
+
+  const { data, error } = await supabaseClient
+    .from("prices")
+    .select("station_id,price,created_at")
+    .gte("created_at", since.toISOString())
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+function buildLatestStationPriceMap(rows) {
+  const latest = new Map();
+
+  for (const row of rows) {
+    if (!latest.has(row.station_id)) {
+      latest.set(row.station_id, row.price);
+    }
+  }
+
+  return latest;
+}
+
+function haveStationPricesChanged(currentStations, latestMap) {
+  if (!latestMap.size) return true;
+
+  for (const station of currentStations) {
+    if (!latestMap.has(station.id)) return true;
+
+    const lastPrice = latestMap.get(station.id);
+    if (Math.abs(Number(lastPrice) - Number(station.price)) >= 0.001) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function savePricesIfNeeded(stations) {
+  try {
+    const recentRows = await getRecentRowsForSaveCheck();
+    const latestMap = buildLatestStationPriceMap(recentRows);
+
+    const hasChanges = haveStationPricesChanged(stations, latestMap);
+
+    if (recentRows.length && !hasChanges) {
+      const latestTime = new Date(recentRows[0].created_at);
+      const nextSave = new Date(latestTime.getTime() + SAVE_COOLDOWN_MS);
+
+      setSaveStatus(
+        "Nicht neu gespeichert – keine Preisänderung, Cooldown bis " +
+        nextSave.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })
+      );
+      return false;
+    }
+
+    const rows = stations.map(s => ({
+      station_id: s.id,
+      price: s.price,
+      hour: new Date().getHours(),
+      day: new Date().getDay()
+    }));
+
+    const { error } = await supabaseClient
+      .from("prices")
+      .insert(rows);
+
+    if (error) {
+      console.error("Supabase Insert Fehler:", error);
+      setSaveStatus("Speichern fehlgeschlagen");
+      return false;
+    }
+
+    setSaveStatus("Daten gespeichert");
+    return true;
+  } catch (e) {
+    console.error("Supabase Ausnahme:", e);
+    setSaveStatus("Speichern fehlgeschlagen");
+    return false;
+  }
+}
+
+function renderBestTimeTodayCard(bestToday) {
+  const el = document.getElementById("bestTimeTodayCard");
+
+  if (!bestToday) {
+    el.innerHTML = `
+      <div class="section-title">Beste Zeit heute</div>
+      <div class="small">Für heute sind noch nicht genug Daten vorhanden.</div>
+    `;
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="section-title">Beste Zeit heute</div>
+    <div class="section-main">${formatWindow(bestToday.startHour, 2)}</div>
+    <div class="small">Ø Preis: ${currency.format(bestToday.avg)}</div>
+    <div class="small">Datengrundlage: ${bestToday.samples} Werte</div>
+  `;
+}
+
+function renderBestTimeOverallCard(bestOverall) {
+  const el = document.getElementById("bestTimeOverallCard");
+
+  if (!bestOverall) {
+    el.innerHTML = `
+      <div class="section-title">Beste Zeit allgemein</div>
+      <div class="small">Noch zu wenig Daten für eine sinnvolle Gesamtauswertung.</div>
+    `;
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="section-title">Beste Zeit allgemein</div>
+    <div class="section-main">${DAY_NAMES[bestOverall.day]}, ${formatWindow(bestOverall.startHour, 2)}</div>
+    <div class="small">Ø Preis: ${currency.format(bestOverall.avg)}</div>
+    <div class="small">Datengrundlage: ${bestOverall.samples} Werte in den letzten ${HISTORY_DAYS} Tagen</div>
+  `;
+}
+
+function renderRecommendationCard(stations, historyRows, bestToday, bestOverall) {
+  const el = document.getElementById("recommendationCard");
+
+  if (!stations.length) {
+    el.innerHTML = `
+      <div class="section-title">Empfehlung</div>
+      <div class="small">Keine offenen Tankstellen verfügbar.</div>
+    `;
+    return;
+  }
+
+  const cheapest = stations[0];
+  const now = new Date();
+  const currentWindowAvg = getCurrentWindowAverageOverall(historyRows, now.getDay(), now.getHours());
+
+  let headline = "Noch keine klare Empfehlung";
+  let detail = "Es fehlen noch genügend historische Daten.";
+  let cls = "";
+
+  if (typeof currentWindowAvg === "number") {
+    const diff = cheapest.price - currentWindowAvg;
+
+    if (diff <= -0.02) {
+      headline = "Jetzt tanken";
+      detail = `${cheapest.name} liegt aktuell deutlich unter dem historischen Schnitt dieses Zeitfensters.`;
+      cls = "badge-good";
+    } else if (diff <= 0.01) {
+      headline = "Kann man gut machen";
+      detail = `${cheapest.name} liegt ungefähr im normalen Bereich für dieses Zeitfenster.`;
+      cls = "badge-warn";
+    } else {
+      if (bestToday && bestToday.startHour > now.getHours()) {
+        headline = "Eher warten";
+        detail = `Heute ist historisch eher ${formatWindow(bestToday.startHour, 2)} günstiger.`;
+      } else if (bestOverall) {
+        headline = "Eher warten";
+        detail = `Historisch ist oft ${DAY_NAMES[bestOverall.day]}, ${formatWindow(bestOverall.startHour, 2)} günstiger.`;
+      } else {
+        headline = "Eher warten";
+        detail = "Aktuell wirkt der billigste Preis eher höher als üblich.";
       }
+      cls = "badge-bad";
+    }
+  }
 
-      return {
-        id: my.id,
-        name: my.name,
-        price: Number(api.price)
-      };
-    })
-    .filter(Boolean) 
-    .sort((a, b) => a.price - b.price); 
-  render(stations);
-  updateLastUpdated();
-
-} catch (e) {
-  console.error(e);
-  document.getElementById("stations").innerHTML =
-    "<div class='card'>Fehler beim Laden</div>";
-}
+  el.innerHTML = `
+    <div class="section-title">Empfehlung</div>
+    <div class="section-main">${headline}</div>
+    <div class="meta" style="margin-top:0; margin-bottom:0.5rem;">
+      <span class="badge ${cls}">${cheapest.name}: ${currency.format(cheapest.price)}</span>
+    </div>
+    <div class="small">${detail}</div>
+  `;
 }
 
-function render(stations) {
+function renderStations(stations, historyRows) {
   const el = document.getElementById("stations");
 
   if (!stations.length) {
@@ -189,12 +595,168 @@ function render(stations) {
     return;
   }
 
-  el.innerHTML = stations.map((s, i) => `
-    <div class="station ${i === 0 ? "cheapest" : ""}">
-      <b>${s.name}</b>
-      <div class="price">${currency.format(s.price)}</div>
-    </div>
-  `).join("");
+  const now = new Date();
+  const stationHistoryMap = buildStationHistoryMap(historyRows);
+
+  el.innerHTML = stations.map((station, index) => {
+    const stationRows = stationHistoryMap.get(station.id) || [];
+    const bestStationTime = aggregateWindowsForStation(historyRows, station.id);
+    const currentWindowAvg = getCurrentWindowAverageForStation(
+      historyRows,
+      station.id,
+      now.getDay(),
+      now.getHours()
+    );
+    const currentBadge = getCurrentValueBadge(station.price, currentWindowAvg);
+    const trend = getTrendLabel(station.price, getLastTwoPricesForStation(historyRows, station.id));
+
+    const bestTimeText = bestStationTime
+      ? `${DAY_NAMES[bestStationTime.day]}, ${formatWindow(bestStationTime.startHour, 2)}`
+      : "noch zu wenig Daten";
+
+    const bestAvgText = bestStationTime
+      ? currency.format(bestStationTime.avg)
+      : "—";
+
+    return `
+      <div class="station ${index === 0 ? "cheapest" : ""}">
+        <div class="station-top">
+          <div class="station-name">${station.name}</div>
+          <div class="price">${currency.format(station.price)}</div>
+        </div>
+
+        <div class="meta">
+          <span class="badge ${currentBadge.cls}">${currentBadge.text}</span>
+          <span class="badge">${trend}</span>
+          ${index === 0 ? `<span class="badge badge-good">billigste aktuell</span>` : ""}
+        </div>
+
+        <div class="small" style="margin-top:0.55rem;">
+          Beste Zeit für diese Tankstelle: ${bestTimeText}
+        </div>
+        <div class="small">
+          Ø bester 2h-Wert: ${bestAvgText}
+        </div>
+        <div class="small">
+          Datensätze für diese Tankstelle: ${stationRows.length}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+async function loadAndRenderInsights(stations) {
+  try {
+    const historyRows = await fetchHistoryRows();
+    const now = new Date();
+
+    const bestToday = aggregateWindows(
+      historyRows,
+      row => row.day === now.getDay()
+    );
+
+    const bestOverall = aggregateWindows(historyRows);
+
+    renderRecommendationCard(stations, historyRows, bestToday, bestOverall);
+    renderBestTimeTodayCard(bestToday);
+    renderBestTimeOverallCard(bestOverall);
+    renderStations(stations, historyRows);
+  } catch (e) {
+    console.error("Fehler bei der Auswertung:", e);
+
+    document.getElementById("recommendationCard").innerHTML = `
+      <div class="section-title">Empfehlung</div>
+      <div class="small">Auswertung konnte gerade nicht geladen werden.</div>
+    `;
+
+    document.getElementById("bestTimeTodayCard").innerHTML = `
+      <div class="section-title">Beste Zeit heute</div>
+      <div class="small">Auswertung konnte gerade nicht geladen werden.</div>
+    `;
+
+    document.getElementById("bestTimeOverallCard").innerHTML = `
+      <div class="section-title">Beste Zeit allgemein</div>
+      <div class="small">Auswertung konnte gerade nicht geladen werden.</div>
+    `;
+
+    renderStations(stations, []);
+  }
+}
+
+async function updatePrices() {
+  setLoadingState(true);
+
+  const url = new URL("https://creativecommons.tankerkoenig.de/json/list.php");
+  url.searchParams.set("lat", "50.1944");
+  url.searchParams.set("lng", "10.0633");
+  url.searchParams.set("rad", "15");
+  url.searchParams.set("type", "e5");
+  url.searchParams.set("sort", "price");
+  url.searchParams.set("apikey", API_KEY);
+
+  try {
+    const res = await fetch(url.toString());
+    const data = await res.json();
+
+    if (!data || data.ok === false) {
+      throw new Error(data?.message || "API Fehler");
+    }
+
+    const apiStations = data.stations || [];
+
+    const stations = MY_STATIONS
+      .map(my => {
+        const api = apiStations.find(s => String(s.id) === String(my.id));
+
+        if (!api || !api.isOpen || typeof api.price !== "number") {
+          return null;
+        }
+
+        return {
+          id: my.id,
+          name: my.name,
+          price: Number(api.price)
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.price - b.price);
+
+    updateLastUpdated();
+
+    if (!stations.length) {
+      document.getElementById("stations").innerHTML =
+        "<div class='card'>Keine offenen Tankstellen</div>";
+      setSaveStatus("Keine offenen Tankstellen");
+      await loadAndRenderInsights([]);
+      return;
+    }
+
+    await savePricesIfNeeded(stations);
+    await loadAndRenderInsights(stations);
+  } catch (e) {
+    console.error(e);
+    document.getElementById("stations").innerHTML =
+      "<div class='card'>Fehler beim Laden</div>";
+
+    document.getElementById("recommendationCard").innerHTML = `
+      <div class="section-title">Empfehlung</div>
+      <div class="small">Abruf fehlgeschlagen.</div>
+    `;
+
+    document.getElementById("bestTimeTodayCard").innerHTML = `
+      <div class="section-title">Beste Zeit heute</div>
+      <div class="small">Abruf fehlgeschlagen.</div>
+    `;
+
+    document.getElementById("bestTimeOverallCard").innerHTML = `
+      <div class="section-title">Beste Zeit allgemein</div>
+      <div class="small">Abruf fehlgeschlagen.</div>
+    `;
+
+    setSaveStatus("Abruf fehlgeschlagen");
+  } finally {
+    setLoadingState(false);
+  }
 }
 
 updatePrices();
