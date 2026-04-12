@@ -31,6 +31,34 @@ h1 {
   box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 }
 
+.controls {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.control-block {
+  flex: 1 1 220px;
+}
+
+label {
+  display: block;
+  font-size: 0.85rem;
+  opacity: 0.72;
+  margin-bottom: 0.35rem;
+}
+
+select {
+  width: 100%;
+  padding: 0.85rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  font-size: 1rem;
+}
+
 button {
   width: 100%;
   padding: 0.9rem;
@@ -148,6 +176,32 @@ button:disabled {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+.chart-wrap {
+  margin-top: 0.8rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.chart-title {
+  font-size: 0.82rem;
+  opacity: 0.72;
+  margin-bottom: 0.45rem;
+}
+
+.chart {
+  width: 100%;
+  height: 90px;
+  display: block;
+  background: rgba(255,255,255,0.03);
+  border-radius: 10px;
+}
+
+.chart-info {
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  opacity: 0.68;
+}
 </style>
 </head>
 
@@ -156,8 +210,22 @@ button:disabled {
 <h1>Tank-Planer</h1>
 
 <div class="card">
-  <button id="updateButton" onclick="updatePrices()">Preise aktualisieren</button>
-  <div id="lastUpdated" class="small" style="margin-top:0.6rem;"></div>
+  <div class="controls">
+    <div class="control-block">
+      <label for="fuelSelect">Kraftstoff</label>
+      <select id="fuelSelect">
+        <option value="e5">E5</option>
+        <option value="e10">E10</option>
+        <option value="diesel">Diesel</option>
+      </select>
+    </div>
+    <div class="control-block">
+      <label>&nbsp;</label>
+      <button id="updateButton" onclick="updatePrices()">Preise aktualisieren</button>
+    </div>
+  </div>
+
+  <div id="lastUpdated" class="small" style="margin-top:0.8rem;"></div>
   <div id="saveStatus" class="small" style="margin-top:0.25rem;"></div>
 </div>
 
@@ -189,9 +257,10 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const SAVE_COOLDOWN_MINUTES = 15;
+const SAVE_COOLDOWN_MINUTES = 5;
 const SAVE_COOLDOWN_MS = SAVE_COOLDOWN_MINUTES * 60 * 1000;
 const HISTORY_DAYS = 28;
+const CHART_POINTS = 18;
 
 const MY_STATIONS = [
   { id: "5d7f3329-7a3f-4dcb-ab3d-4d6d757ae1c0", name: "Walther Kreisel" },
@@ -210,21 +279,22 @@ const MY_STATIONS = [
   { id: "24b6509d-2622-4998-bcc3-e75793e90435", name: "Aral Münnerstadt" }
 ];
 
-const STATION_NAME_MAP = Object.fromEntries(MY_STATIONS.map(s => [s.id, s.name]));
-
 const DAY_NAMES = [
-  "Sonntag",
-  "Montag",
-  "Dienstag",
-  "Mittwoch",
-  "Donnerstag",
-  "Freitag",
-  "Samstag"
+  "Sonntag", "Montag", "Dienstag", "Mittwoch",
+  "Donnerstag", "Freitag", "Samstag"
 ];
 
 const currency = new Intl.NumberFormat("de-DE", {
   style: "currency",
   currency: "EUR"
+});
+
+let currentFuel = "e5";
+let latestHistoryRows = [];
+
+document.getElementById("fuelSelect").addEventListener("change", async (e) => {
+  currentFuel = e.target.value;
+  await updatePrices();
 });
 
 function pad2(value) {
@@ -241,13 +311,12 @@ function updateLastUpdated() {
   const now = new Date();
 
   el.textContent =
-    "Letztes Update: " +
-    now.toLocaleString("de-DE", {
+    `Letztes Update: ${now.toLocaleString("de-DE", {
       day: "2-digit",
       month: "2-digit",
       hour: "2-digit",
       minute: "2-digit"
-    });
+    })} • Kraftstoff: ${currentFuel.toUpperCase()}`;
 }
 
 function setSaveStatus(text) {
@@ -400,11 +469,15 @@ async function fetchHistoryRows() {
   const since = new Date();
   since.setDate(since.getDate() - HISTORY_DAYS);
 
-  const { data, error } = await supabaseClient
+  let query = supabaseClient
     .from("prices")
-    .select("station_id,price,hour,day,created_at")
+    .select("station_id,price,hour,day,created_at,fuel_type")
     .gte("created_at", since.toISOString())
     .order("created_at", { ascending: true });
+
+  query = query.eq("fuel_type", currentFuel);
+
+  const { data, error } = await query;
 
   if (error) throw error;
   return data || [];
@@ -413,11 +486,15 @@ async function fetchHistoryRows() {
 async function getRecentRowsForSaveCheck() {
   const since = new Date(Date.now() - SAVE_COOLDOWN_MS);
 
-  const { data, error } = await supabaseClient
+  let query = supabaseClient
     .from("prices")
-    .select("station_id,price,created_at")
+    .select("station_id,price,created_at,fuel_type")
     .gte("created_at", since.toISOString())
     .order("created_at", { ascending: false });
+
+  query = query.eq("fuel_type", currentFuel);
+
+  const { data, error } = await query;
 
   if (error) throw error;
   return data || [];
@@ -454,7 +531,6 @@ async function savePricesIfNeeded(stations) {
   try {
     const recentRows = await getRecentRowsForSaveCheck();
     const latestMap = buildLatestStationPriceMap(recentRows);
-
     const hasChanges = haveStationPricesChanged(stations, latestMap);
 
     if (recentRows.length && !hasChanges) {
@@ -468,11 +544,13 @@ async function savePricesIfNeeded(stations) {
       return false;
     }
 
+    const now = new Date();
     const rows = stations.map(s => ({
       station_id: s.id,
       price: s.price,
-      hour: new Date().getHours(),
-      day: new Date().getDay()
+      hour: now.getHours(),
+      day: now.getDay(),
+      fuel_type: currentFuel
     }));
 
     const { error } = await supabaseClient
@@ -582,9 +660,82 @@ function renderRecommendationCard(stations, historyRows, bestToday, bestOverall)
     <div class="section-main">${headline}</div>
     <div class="meta" style="margin-top:0; margin-bottom:0.5rem;">
       <span class="badge ${cls}">${cheapest.name}: ${currency.format(cheapest.price)}</span>
+      <span class="badge">${currentFuel.toUpperCase()}</span>
     </div>
     <div class="small">${detail}</div>
   `;
+}
+
+function getChartPointsForStation(rows, stationId) {
+  return rows
+    .filter(r => r.station_id === stationId && typeof r.price === "number")
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    .slice(-CHART_POINTS);
+}
+
+function drawStationCharts() {
+  const canvases = document.querySelectorAll(".chart");
+
+  canvases.forEach(canvas => {
+    const stationId = canvas.dataset.stationId;
+    const points = getChartPointsForStation(latestHistoryRows, stationId);
+
+    const rect = canvas.getBoundingClientRect();
+    const width = Math.max(260, Math.floor(rect.width || canvas.clientWidth || 300));
+    const height = 90;
+
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, width, height);
+
+    if (points.length < 2) {
+      ctx.fillStyle = "rgba(255,255,255,0.45)";
+      ctx.font = "12px system-ui";
+      ctx.fillText("Noch nicht genug Daten für ein Diagramm", 12, 24);
+      return;
+    }
+
+    const prices = points.map(p => p.price);
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const range = Math.max(0.01, max - min);
+
+    const padX = 10;
+    const padY = 10;
+    const innerW = width - padX * 2;
+    const innerH = height - padY * 2;
+
+    ctx.strokeStyle = "rgba(255,255,255,0.10)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padX, height - padY);
+    ctx.lineTo(width - padX, height - padY);
+    ctx.stroke();
+
+    ctx.beginPath();
+    points.forEach((point, index) => {
+      const x = padX + (innerW * index / (points.length - 1));
+      const y = padY + (innerH - ((point.price - min) / range) * innerH);
+
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = "rgba(0,255,100,0.95)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    points.forEach((point, index) => {
+      const x = padX + (innerW * index / (points.length - 1));
+      const y = padY + (innerH - ((point.price - min) / range) * innerH);
+
+      ctx.beginPath();
+      ctx.arc(x, y, 2.4, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0,255,100,0.95)";
+      ctx.fill();
+    });
+  });
 }
 
 function renderStations(stations, historyRows) {
@@ -628,6 +779,7 @@ function renderStations(stations, historyRows) {
         <div class="meta">
           <span class="badge ${currentBadge.cls}">${currentBadge.text}</span>
           <span class="badge">${trend}</span>
+          <span class="badge">${currentFuel.toUpperCase()}</span>
           ${index === 0 ? `<span class="badge badge-good">billigste aktuell</span>` : ""}
         </div>
 
@@ -640,27 +792,35 @@ function renderStations(stations, historyRows) {
         <div class="small">
           Datensätze für diese Tankstelle: ${stationRows.length}
         </div>
+
+        <div class="chart-wrap">
+          <div class="chart-title">Preisverlauf dieser Tankstelle</div>
+          <canvas class="chart" data-station-id="${station.id}"></canvas>
+          <div class="chart-info">Letzte ${Math.min(CHART_POINTS, stationRows.length)} gespeicherte Werte</div>
+        </div>
       </div>
     `;
   }).join("");
+
+  requestAnimationFrame(drawStationCharts);
 }
 
 async function loadAndRenderInsights(stations) {
   try {
-    const historyRows = await fetchHistoryRows();
+    latestHistoryRows = await fetchHistoryRows();
     const now = new Date();
 
     const bestToday = aggregateWindows(
-      historyRows,
+      latestHistoryRows,
       row => row.day === now.getDay()
     );
 
-    const bestOverall = aggregateWindows(historyRows);
+    const bestOverall = aggregateWindows(latestHistoryRows);
 
-    renderRecommendationCard(stations, historyRows, bestToday, bestOverall);
+    renderRecommendationCard(stations, latestHistoryRows, bestToday, bestOverall);
     renderBestTimeTodayCard(bestToday);
     renderBestTimeOverallCard(bestOverall);
-    renderStations(stations, historyRows);
+    renderStations(stations, latestHistoryRows);
   } catch (e) {
     console.error("Fehler bei der Auswertung:", e);
 
@@ -690,7 +850,7 @@ async function updatePrices() {
   url.searchParams.set("lat", "50.1944");
   url.searchParams.set("lng", "10.0633");
   url.searchParams.set("rad", "15");
-  url.searchParams.set("type", "e5");
+  url.searchParams.set("type", currentFuel);
   url.searchParams.set("sort", "price");
   url.searchParams.set("apikey", API_KEY);
 
