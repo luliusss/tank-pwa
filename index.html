@@ -8,71 +8,105 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
+:root {
+  --bg: #111214;
+  --card: rgba(255,255,255,0.06);
+  --card-border: rgba(255,255,255,0.08);
+  --text: #ffffff;
+  --muted: rgba(255,255,255,0.68);
+  --green: #86ffb1;
+  --green-bg: rgba(0,255,100,0.12);
+  --blue: #95cfff;
+  --blue-bg: rgba(0,140,255,0.12);
+  --red: #ff9f9f;
+  --red-bg: rgba(255,90,90,0.12);
+  --yellow: #ffd866;
+  --yellow-bg: rgba(255,208,0,0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
-  font-family: -apple-system, system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
   margin: 0;
-  padding: 1.5rem;
-  background: #161616;
-  color: #fff;
+  padding: 1rem;
+  background:
+    radial-gradient(circle at top, rgba(255,255,255,0.05), transparent 35%),
+    linear-gradient(180deg, #16181b 0%, #101113 100%);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrapper {
+  max-width: 920px;
+  margin: 0 auto;
 }
 
 h1 {
   text-align: center;
   font-size: 1.8rem;
-  margin-bottom: 1rem;
+  margin: 0 0 1rem 0;
+  letter-spacing: -0.02em;
 }
 
 .card {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 18px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
   padding: 1rem;
   margin-bottom: 1rem;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
 }
 
 .controls {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 0.75rem;
-  flex-wrap: wrap;
-  align-items: center;
 }
 
-.control-block {
-  flex: 1 1 220px;
+@media (min-width: 760px) {
+  .controls {
+    grid-template-columns: 1fr 1fr auto;
+    align-items: end;
+  }
 }
 
 label {
   display: block;
-  font-size: 0.85rem;
-  opacity: 0.72;
+  font-size: 0.82rem;
+  color: var(--muted);
   margin-bottom: 0.35rem;
 }
 
 select {
   width: 100%;
-  padding: 0.85rem;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.1);
+  padding: 0.9rem 1rem;
+  border-radius: 16px;
+  border: 1px solid var(--card-border);
   background: rgba(255,255,255,0.06);
-  color: #fff;
+  color: var(--text);
   font-size: 1rem;
+  outline: none;
 }
 
 button {
   width: 100%;
-  padding: 0.9rem;
+  min-width: 180px;
+  padding: 0.95rem 1rem;
   border: none;
   border-radius: 16px;
-  background: rgba(255, 10, 10, 0.85);
+  background: linear-gradient(180deg, rgba(255,50,50,0.95), rgba(220,30,30,0.92));
   color: white;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  transition: 0.2s;
+  transition: transform 0.18s ease, opacity 0.18s ease;
 }
 
 button:hover {
-  transform: scale(1.02);
+  transform: translateY(-1px);
 }
 
 button:disabled {
@@ -81,89 +115,9 @@ button:disabled {
   transform: none;
 }
 
-.station {
-  padding: 0.95rem;
-  border-radius: 14px;
-  margin-bottom: 0.75rem;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  transition: 0.2s;
-}
-
-.station:hover {
-  background: rgba(0,255,64,0.08);
-}
-
-.cheapest {
-  border: 1px solid rgba(0,255,64,0.8);
-  background: rgba(0,255,64,0.07);
-}
-
-.station-top {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: flex-start;
-}
-
-.station-name {
-  font-weight: 700;
-}
-
-.price {
-  font-size: 1.2rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
 .small {
-  font-size: 0.85rem;
-  opacity: 0.72;
-}
-
-.meta {
-  margin-top: 0.45rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
-.badge {
-  display: inline-block;
-  padding: 0.28rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.08);
-}
-
-.badge-good {
-  background: rgba(0,255,100,0.12);
-  border-color: rgba(0,255,100,0.22);
-  color: #86ffb1;
-}
-
-.badge-warn {
-  background: rgba(255,208,0,0.12);
-  border-color: rgba(255,208,0,0.22);
-  color: #ffd866;
-}
-
-.badge-bad {
-  background: rgba(255,90,90,0.12);
-  border-color: rgba(255,90,90,0.22);
-  color: #ff9f9f;
-}
-
-.section-title {
-  font-weight: 700;
-  margin-bottom: 0.4rem;
-}
-
-.section-main {
-  font-size: 1.08rem;
-  font-weight: 700;
-  margin-bottom: 0.35rem;
+  font-size: 0.84rem;
+  color: var(--muted);
 }
 
 .grid {
@@ -177,76 +131,193 @@ button:disabled {
   }
 }
 
-.chart-wrap {
-  margin-top: 0.8rem;
-  padding-top: 0.65rem;
+.section-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 0.35rem;
+}
+
+.section-main {
+  font-size: 1.08rem;
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+  letter-spacing: -0.01em;
+}
+
+.station {
+  background: rgba(255,255,255,0.045);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  margin-bottom: 0.85rem;
+  overflow: hidden;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.station:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+.station.is-top {
+  border-color: rgba(0,255,100,0.45);
+  background: rgba(0,255,100,0.06);
+}
+
+.station-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 1rem;
+}
+
+.station-summary::-webkit-details-marker {
+  display: none;
+}
+
+.station-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.station-name {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.station-price {
+  font-size: 1.16rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.meta {
+  margin-top: 0.55rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.badge-good {
+  background: var(--green-bg);
+  color: var(--green);
+  border-color: rgba(0,255,100,0.22);
+}
+
+.badge-info {
+  background: var(--blue-bg);
+  color: var(--blue);
+  border-color: rgba(0,140,255,0.22);
+}
+
+.badge-warn {
+  background: var(--yellow-bg);
+  color: var(--yellow);
+  border-color: rgba(255,208,0,0.22);
+}
+
+.badge-bad {
+  background: var(--red-bg);
+  color: var(--red);
+  border-color: rgba(255,90,90,0.22);
+}
+
+.station-details {
+  padding: 0 1rem 1rem 1rem;
   border-top: 1px solid rgba(255,255,255,0.08);
 }
 
-.chart-title {
-  font-size: 0.82rem;
-  opacity: 0.72;
-  margin-bottom: 0.45rem;
+.detail-line {
+  font-size: 0.9rem;
+  margin-top: 0.55rem;
+  color: rgba(255,255,255,0.9);
 }
 
-.chart {
-  width: 100%;
-  height: 90px;
-  display: block;
-  background: rgba(255,255,255,0.03);
-  border-radius: 10px;
+.dim {
+  color: var(--muted);
 }
 
-.chart-info {
-  margin-top: 0.35rem;
+.summary-hint {
+  margin-top: 0.45rem;
   font-size: 0.78rem;
-  opacity: 0.68;
+  color: rgba(255,255,255,0.52);
+}
+
+.status-line {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.8rem;
 }
 </style>
 </head>
 
 <body>
+<div class="wrapper">
 
-<h1>Tank-Planer</h1>
+  <h1>Tank-Planer</h1>
 
-<div class="card">
-  <div class="controls">
-    <div class="control-block">
-      <label for="fuelSelect">Kraftstoff</label>
-      <select id="fuelSelect">
-        <option value="e5">E5</option>
-        <option value="e10">E10</option>
-        <option value="diesel">Diesel</option>
-      </select>
+  <div class="card">
+    <div class="controls">
+      <div>
+        <label for="fuelSelect">Kraftstoff</label>
+        <select id="fuelSelect">
+          <option value="e5">E5</option>
+          <option value="e10">E10</option>
+          <option value="diesel">Diesel</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="sortSelect">Sortierung</label>
+        <select id="sortSelect">
+          <option value="price">Nach Preis</option>
+          <option value="distance">Nach Entfernung</option>
+        </select>
+      </div>
+
+      <div>
+        <label>&nbsp;</label>
+        <button id="updateButton" onclick="updatePrices()">Preise aktualisieren</button>
+      </div>
     </div>
-    <div class="control-block">
-      <label>&nbsp;</label>
-      <button id="updateButton" onclick="updatePrices()">Preise aktualisieren</button>
+
+    <div class="status-line">
+      <div id="locationStatus" class="small"></div>
+      <div id="lastUpdated" class="small"></div>
+      <div id="saveStatus" class="small"></div>
     </div>
   </div>
 
-  <div id="lastUpdated" class="small" style="margin-top:0.8rem;"></div>
-  <div id="saveStatus" class="small" style="margin-top:0.25rem;"></div>
-</div>
+  <div class="grid grid-2">
+    <div id="recommendationCard" class="card">
+      <div class="section-title">Empfehlung</div>
+      <div class="small">Lade Auswertung…</div>
+    </div>
 
-<div class="grid grid-2">
-  <div id="recommendationCard" class="card">
-    <div class="section-title">Empfehlung</div>
+    <div id="bestTimeTodayCard" class="card">
+      <div class="section-title">Beste Zeit heute</div>
+      <div class="small">Lade Auswertung…</div>
+    </div>
+  </div>
+
+  <div id="bestTimeOverallCard" class="card">
+    <div class="section-title">Beste Zeit allgemein</div>
     <div class="small">Lade Auswertung…</div>
   </div>
 
-  <div id="bestTimeTodayCard" class="card">
-    <div class="section-title">Beste Zeit heute</div>
-    <div class="small">Lade Auswertung…</div>
-  </div>
+  <div id="stations"></div>
 </div>
-
-<div id="bestTimeOverallCard" class="card">
-  <div class="section-title">Beste Zeit allgemein</div>
-  <div class="small">Lade Auswertung…</div>
-</div>
-
-<div id="stations"></div>
 
 <script>
 const { createClient } = window.supabase;
@@ -257,10 +328,10 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const SAVE_COOLDOWN_MINUTES = 5;
+const SAVE_COOLDOWN_MINUTES = 15;
 const SAVE_COOLDOWN_MS = SAVE_COOLDOWN_MINUTES * 60 * 1000;
 const HISTORY_DAYS = 28;
-const CHART_POINTS = 18;
+const LOCATION_REQUEST_KEY = "tankplaner_location_requested_v3";
 
 const MY_STATIONS = [
   { id: "5d7f3329-7a3f-4dcb-ab3d-4d6d757ae1c0", name: "Walther Kreisel" },
@@ -290,10 +361,17 @@ const currency = new Intl.NumberFormat("de-DE", {
 });
 
 let currentFuel = "e5";
+let currentSortMode = "price";
 let latestHistoryRows = [];
+let userLocation = null;
 
 document.getElementById("fuelSelect").addEventListener("change", async (e) => {
   currentFuel = e.target.value;
+  await updatePrices();
+});
+
+document.getElementById("sortSelect").addEventListener("change", async (e) => {
+  currentSortMode = e.target.value;
   await updatePrices();
 });
 
@@ -306,6 +384,11 @@ function formatWindow(startHour, duration = 2) {
   return `${pad2(startHour)}:00–${pad2(endHour)}:00`;
 }
 
+function formatDistance(distanceKm) {
+  if (distanceKm < 1) return `${Math.round(distanceKm * 1000)} m`;
+  return `${distanceKm.toFixed(1)} km`;
+}
+
 function updateLastUpdated() {
   const el = document.getElementById("lastUpdated");
   const now = new Date();
@@ -316,7 +399,17 @@ function updateLastUpdated() {
       month: "2-digit",
       hour: "2-digit",
       minute: "2-digit"
-    })} • Kraftstoff: ${currentFuel.toUpperCase()}`;
+    })} • ${currentFuel.toUpperCase()}`;
+}
+
+function updateLocationStatus() {
+  const el = document.getElementById("locationStatus");
+
+  if (userLocation) {
+    el.textContent = "Standort aktiv";
+  } else {
+    el.textContent = "Standort nicht aktiv";
+  }
 }
 
 function setSaveStatus(text) {
@@ -324,9 +417,7 @@ function setSaveStatus(text) {
 }
 
 function setLoadingState(isLoading) {
-  const btn = document.getElementById("updateButton");
-  if (!btn) return;
-  btn.disabled = isLoading;
+  document.getElementById("updateButton").disabled = isLoading;
 }
 
 function getWindowStart(hour) {
@@ -335,17 +426,11 @@ function getWindowStart(hour) {
 
 function buildStationHistoryMap(rows) {
   const map = new Map();
-
   for (const row of rows) {
     if (!row.station_id || typeof row.price !== "number") continue;
-
-    if (!map.has(row.station_id)) {
-      map.set(row.station_id, []);
-    }
-
+    if (!map.has(row.station_id)) map.set(row.station_id, []);
     map.get(row.station_id).push(row);
   }
-
   return map;
 }
 
@@ -361,35 +446,28 @@ function getLastTwoPricesForStation(rows, stationId) {
     }
     if (uniquePrices.length === 2) break;
   }
-
   return uniquePrices;
 }
 
 function getTrendLabel(currentPrice, lastTwoPrices) {
-  if (!lastTwoPrices || lastTwoPrices.length < 2) return "↔ keine Trenddaten";
+  if (!lastTwoPrices || lastTwoPrices.length < 2) return { text: "kein Trend", cls: "" };
 
   const previous = lastTwoPrices[1];
   const diff = currentPrice - previous;
 
-  if (diff <= -0.005) return "↘ fällt";
-  if (diff >= 0.005) return "↗ steigt";
-  return "→ stabil";
+  if (diff <= -0.005) return { text: "Preis fällt", cls: "badge-good" };
+  if (diff >= 0.005) return { text: "Preis steigt", cls: "badge-bad" };
+  return { text: "Preis stabil", cls: "badge-warn" };
 }
 
 function getCurrentValueBadge(currentPrice, avg) {
-  if (typeof avg !== "number") {
-    return { text: "noch keine Einordnung", cls: "" };
-  }
+  if (typeof avg !== "number") return { text: "noch keine Einordnung", cls: "" };
 
   const diff = currentPrice - avg;
 
-  if (diff <= -0.015) {
-    return { text: "aktuell günstig", cls: "badge-good" };
-  }
-  if (diff <= 0.015) {
-    return { text: "aktuell normal", cls: "badge-warn" };
-  }
-  return { text: "aktuell teuer", cls: "badge-bad" };
+  if (diff <= -0.015) return { text: "historisch günstig", cls: "badge-good" };
+  if (diff <= 0.015) return { text: "historisch normal", cls: "badge-warn" };
+  return { text: "historisch eher teuer", cls: "badge-bad" };
 }
 
 function aggregateWindows(rows, filterFn = null) {
@@ -426,9 +504,7 @@ function aggregateWindows(rows, filterFn = null) {
       samples: bucket.prices.length
     };
 
-    if (!best || candidate.avg < best.avg) {
-      best = candidate;
-    }
+    if (!best || candidate.avg < best.avg) best = candidate;
   }
 
   return best;
@@ -448,7 +524,6 @@ function getCurrentWindowAverageForStation(rows, stationId, day, hour) {
   );
 
   if (filtered.length < 2) return null;
-
   return filtered.reduce((sum, r) => sum + r.price, 0) / filtered.length;
 }
 
@@ -461,7 +536,6 @@ function getCurrentWindowAverageOverall(rows, day, hour) {
   );
 
   if (filtered.length < 2) return null;
-
   return filtered.reduce((sum, r) => sum + r.price, 0) / filtered.length;
 }
 
@@ -469,15 +543,12 @@ async function fetchHistoryRows() {
   const since = new Date();
   since.setDate(since.getDate() - HISTORY_DAYS);
 
-  let query = supabaseClient
+  const { data, error } = await supabaseClient
     .from("prices")
     .select("station_id,price,hour,day,created_at,fuel_type")
+    .eq("fuel_type", currentFuel)
     .gte("created_at", since.toISOString())
     .order("created_at", { ascending: true });
-
-  query = query.eq("fuel_type", currentFuel);
-
-  const { data, error } = await query;
 
   if (error) throw error;
   return data || [];
@@ -486,15 +557,12 @@ async function fetchHistoryRows() {
 async function getRecentRowsForSaveCheck() {
   const since = new Date(Date.now() - SAVE_COOLDOWN_MS);
 
-  let query = supabaseClient
+  const { data, error } = await supabaseClient
     .from("prices")
     .select("station_id,price,created_at,fuel_type")
+    .eq("fuel_type", currentFuel)
     .gte("created_at", since.toISOString())
     .order("created_at", { ascending: false });
-
-  query = query.eq("fuel_type", currentFuel);
-
-  const { data, error } = await query;
 
   if (error) throw error;
   return data || [];
@@ -502,13 +570,9 @@ async function getRecentRowsForSaveCheck() {
 
 function buildLatestStationPriceMap(rows) {
   const latest = new Map();
-
   for (const row of rows) {
-    if (!latest.has(row.station_id)) {
-      latest.set(row.station_id, row.price);
-    }
+    if (!latest.has(row.station_id)) latest.set(row.station_id, row.price);
   }
-
   return latest;
 }
 
@@ -517,11 +581,8 @@ function haveStationPricesChanged(currentStations, latestMap) {
 
   for (const station of currentStations) {
     if (!latestMap.has(station.id)) return true;
-
     const lastPrice = latestMap.get(station.id);
-    if (Math.abs(Number(lastPrice) - Number(station.price)) >= 0.001) {
-      return true;
-    }
+    if (Math.abs(Number(lastPrice) - Number(station.price)) >= 0.001) return true;
   }
 
   return false;
@@ -536,7 +597,6 @@ async function savePricesIfNeeded(stations) {
     if (recentRows.length && !hasChanges) {
       const latestTime = new Date(recentRows[0].created_at);
       const nextSave = new Date(latestTime.getTime() + SAVE_COOLDOWN_MS);
-
       setSaveStatus(
         "Nicht neu gespeichert – keine Preisänderung, Cooldown bis " +
         nextSave.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })
@@ -553,9 +613,7 @@ async function savePricesIfNeeded(stations) {
       fuel_type: currentFuel
     }));
 
-    const { error } = await supabaseClient
-      .from("prices")
-      .insert(rows);
+    const { error } = await supabaseClient.from("prices").insert(rows);
 
     if (error) {
       console.error("Supabase Insert Fehler:", error);
@@ -578,7 +636,7 @@ function renderBestTimeTodayCard(bestToday) {
   if (!bestToday) {
     el.innerHTML = `
       <div class="section-title">Beste Zeit heute</div>
-      <div class="small">Für heute sind noch nicht genug Daten vorhanden.</div>
+      <div class="small">Für heute liegen noch nicht genug Daten vor.</div>
     `;
     return;
   }
@@ -587,7 +645,6 @@ function renderBestTimeTodayCard(bestToday) {
     <div class="section-title">Beste Zeit heute</div>
     <div class="section-main">${formatWindow(bestToday.startHour, 2)}</div>
     <div class="small">Ø Preis: ${currency.format(bestToday.avg)}</div>
-    <div class="small">Datengrundlage: ${bestToday.samples} Werte</div>
   `;
 }
 
@@ -597,7 +654,7 @@ function renderBestTimeOverallCard(bestOverall) {
   if (!bestOverall) {
     el.innerHTML = `
       <div class="section-title">Beste Zeit allgemein</div>
-      <div class="small">Noch zu wenig Daten für eine sinnvolle Gesamtauswertung.</div>
+      <div class="small">Noch zu wenig Daten für eine belastbare Gesamtauswertung.</div>
     `;
     return;
   }
@@ -606,8 +663,43 @@ function renderBestTimeOverallCard(bestOverall) {
     <div class="section-title">Beste Zeit allgemein</div>
     <div class="section-main">${DAY_NAMES[bestOverall.day]}, ${formatWindow(bestOverall.startHour, 2)}</div>
     <div class="small">Ø Preis: ${currency.format(bestOverall.avg)}</div>
-    <div class="small">Datengrundlage: ${bestOverall.samples} Werte in den letzten ${HISTORY_DAYS} Tagen</div>
   `;
+}
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const toRad = deg => deg * Math.PI / 180;
+  const R = 6371;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) ** 2;
+
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function sortStations(stations) {
+  return [...stations].sort((a, b) => {
+    if (currentSortMode === "distance") {
+      const aDist = typeof a.distanceKm === "number" ? a.distanceKm : Infinity;
+      const bDist = typeof b.distanceKm === "number" ? b.distanceKm : Infinity;
+
+      if (Math.abs(aDist - bDist) > 0.001) return aDist - bDist;
+      if (Math.abs(a.price - b.price) > 0.0001) return a.price - b.price;
+      return a.originalIndex - b.originalIndex;
+    }
+
+    if (Math.abs(a.price - b.price) > 0.0001) return a.price - b.price;
+
+    const aDist = typeof a.distanceKm === "number" ? a.distanceKm : Infinity;
+    const bDist = typeof b.distanceKm === "number" ? b.distanceKm : Infinity;
+
+    if (Math.abs(aDist - bDist) > 0.001) return aDist - bDist;
+    return a.originalIndex - b.originalIndex;
+  });
 }
 
 function renderRecommendationCard(stations, historyRows, bestToday, bestOverall) {
@@ -621,121 +713,62 @@ function renderRecommendationCard(stations, historyRows, bestToday, bestOverall)
     return;
   }
 
-  const cheapest = stations[0];
+  const topStation = stations[0];
   const now = new Date();
   const currentWindowAvg = getCurrentWindowAverageOverall(historyRows, now.getDay(), now.getHours());
 
-  let headline = "Noch keine klare Empfehlung";
-  let detail = "Es fehlen noch genügend historische Daten.";
-  let cls = "";
+  let headline = "";
+  let detail = "";
+  let badgeClass = "";
 
-  if (typeof currentWindowAvg === "number") {
-    const diff = cheapest.price - currentWindowAvg;
+  if (currentSortMode === "distance") {
+    headline = "Nächstgelegene verfügbare Tankstelle";
+    detail = `${topStation.name} ist aktuell die nächstgelegene Tankstelle aus deiner Liste.`;
+    badgeClass = "badge-info";
+  } else {
+    if (typeof currentWindowAvg === "number") {
+      const diff = topStation.price - currentWindowAvg;
 
-    if (diff <= -0.02) {
-      headline = "Jetzt tanken";
-      detail = `${cheapest.name} liegt aktuell deutlich unter dem historischen Schnitt dieses Zeitfensters.`;
-      cls = "badge-good";
-    } else if (diff <= 0.01) {
-      headline = "Kann man gut machen";
-      detail = `${cheapest.name} liegt ungefähr im normalen Bereich für dieses Zeitfenster.`;
-      cls = "badge-warn";
-    } else {
-      if (bestToday && bestToday.startHour > now.getHours()) {
-        headline = "Eher warten";
-        detail = `Heute ist historisch eher ${formatWindow(bestToday.startHour, 2)} günstiger.`;
-      } else if (bestOverall) {
-        headline = "Eher warten";
-        detail = `Historisch ist oft ${DAY_NAMES[bestOverall.day]}, ${formatWindow(bestOverall.startHour, 2)} günstiger.`;
+      if (diff <= -0.02) {
+        headline = "Aktuell empfehlenswert";
+        detail = `${topStation.name} liegt derzeit unter dem üblichen Preisniveau dieses Zeitfensters.`;
+        badgeClass = "badge-good";
+      } else if (diff <= 0.01) {
+        headline = "Preisniveau unauffällig";
+        detail = `${topStation.name} liegt aktuell ungefähr im erwartbaren Bereich.`;
+        badgeClass = "badge-warn";
       } else {
-        headline = "Eher warten";
-        detail = "Aktuell wirkt der billigste Preis eher höher als üblich.";
+        if (bestToday && bestToday.startHour > now.getHours()) {
+          headline = "Warten könnte sinnvoll sein";
+          detail = `Für heute wirkt historisch eher ${formatWindow(bestToday.startHour, 2)} günstiger.`;
+        } else if (bestOverall) {
+          headline = "Historisch günstigeres Zeitfenster wahrscheinlich";
+          detail = `Auffällig günstig ist oft ${DAY_NAMES[bestOverall.day]}, ${formatWindow(bestOverall.startHour, 2)}.`;
+        } else {
+          headline = "Aktuell eher über dem üblichen Bereich";
+          detail = "Die momentanen Preise wirken historisch betrachtet eher erhöht.";
+        }
+        badgeClass = "badge-bad";
       }
-      cls = "badge-bad";
+    } else {
+      headline = "Empfehlung derzeit eingeschränkt";
+      detail = "Für eine belastbare Einordnung liegen noch nicht genug Daten vor.";
     }
   }
+
+  const extra = typeof topStation.distanceKm === "number"
+    ? ` • ${formatDistance(topStation.distanceKm)} entfernt`
+    : "";
 
   el.innerHTML = `
     <div class="section-title">Empfehlung</div>
     <div class="section-main">${headline}</div>
-    <div class="meta" style="margin-top:0; margin-bottom:0.5rem;">
-      <span class="badge ${cls}">${cheapest.name}: ${currency.format(cheapest.price)}</span>
+    <div class="meta" style="margin-top:0; margin-bottom:0.45rem;">
+      <span class="badge ${badgeClass}">${topStation.name} – ${currency.format(topStation.price)}${extra}</span>
       <span class="badge">${currentFuel.toUpperCase()}</span>
     </div>
     <div class="small">${detail}</div>
   `;
-}
-
-function getChartPointsForStation(rows, stationId) {
-  return rows
-    .filter(r => r.station_id === stationId && typeof r.price === "number")
-    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-    .slice(-CHART_POINTS);
-}
-
-function drawStationCharts() {
-  const canvases = document.querySelectorAll(".chart");
-
-  canvases.forEach(canvas => {
-    const stationId = canvas.dataset.stationId;
-    const points = getChartPointsForStation(latestHistoryRows, stationId);
-
-    const rect = canvas.getBoundingClientRect();
-    const width = Math.max(260, Math.floor(rect.width || canvas.clientWidth || 300));
-    const height = 90;
-
-    canvas.width = width;
-    canvas.height = height;
-
-    const ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, width, height);
-
-    if (points.length < 2) {
-      ctx.fillStyle = "rgba(255,255,255,0.45)";
-      ctx.font = "12px system-ui";
-      ctx.fillText("Noch nicht genug Daten für ein Diagramm", 12, 24);
-      return;
-    }
-
-    const prices = points.map(p => p.price);
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    const range = Math.max(0.01, max - min);
-
-    const padX = 10;
-    const padY = 10;
-    const innerW = width - padX * 2;
-    const innerH = height - padY * 2;
-
-    ctx.strokeStyle = "rgba(255,255,255,0.10)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(padX, height - padY);
-    ctx.lineTo(width - padX, height - padY);
-    ctx.stroke();
-
-    ctx.beginPath();
-    points.forEach((point, index) => {
-      const x = padX + (innerW * index / (points.length - 1));
-      const y = padY + (innerH - ((point.price - min) / range) * innerH);
-
-      if (index === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    });
-    ctx.strokeStyle = "rgba(0,255,100,0.95)";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    points.forEach((point, index) => {
-      const x = padX + (innerW * index / (points.length - 1));
-      const y = padY + (innerH - ((point.price - min) / range) * innerH);
-
-      ctx.beginPath();
-      ctx.arc(x, y, 2.4, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(0,255,100,0.95)";
-      ctx.fill();
-    });
-  });
 }
 
 function renderStations(stations, historyRows) {
@@ -748,8 +781,10 @@ function renderStations(stations, historyRows) {
 
   const now = new Date();
   const stationHistoryMap = buildStationHistoryMap(historyRows);
+  const topStationId = stations[0].id;
+  const topLabel = currentSortMode === "distance" ? "nächste Tankstelle" : "günstigster Preis";
 
-  el.innerHTML = stations.map((station, index) => {
+  el.innerHTML = stations.map(station => {
     const stationRows = stationHistoryMap.get(station.id) || [];
     const bestStationTime = aggregateWindowsForStation(historyRows, station.id);
     const currentWindowAvg = getCurrentWindowAverageForStation(
@@ -769,40 +804,35 @@ function renderStations(stations, historyRows) {
       ? currency.format(bestStationTime.avg)
       : "—";
 
+    const isTop = station.id === topStationId;
+
     return `
-      <div class="station ${index === 0 ? "cheapest" : ""}">
-        <div class="station-top">
-          <div class="station-name">${station.name}</div>
-          <div class="price">${currency.format(station.price)}</div>
-        </div>
+      <details class="station ${isTop ? "is-top" : ""}">
+        <summary class="station-summary">
+          <div class="station-row">
+            <div class="station-name">${station.name}</div>
+            <div class="station-price">${currency.format(station.price)}</div>
+          </div>
 
-        <div class="meta">
-          <span class="badge ${currentBadge.cls}">${currentBadge.text}</span>
-          <span class="badge">${trend}</span>
-          <span class="badge">${currentFuel.toUpperCase()}</span>
-          ${index === 0 ? `<span class="badge badge-good">billigste aktuell</span>` : ""}
-        </div>
+          <div class="meta">
+            ${currentBadge.text !== "noch keine Einordnung" ? `<span class="badge ${currentBadge.cls}">${currentBadge.text}</span>` : ""}
+            <span class="badge ${trend.cls}">${trend.text}</span>
+            ${typeof station.distanceKm === "number" ? `<span class="badge badge-info">${formatDistance(station.distanceKm)}</span>` : ""}
+            ${isTop ? `<span class="badge badge-good">${topLabel}</span>` : ""}
+          </div>
 
-        <div class="small" style="margin-top:0.55rem;">
-          Beste Zeit für diese Tankstelle: ${bestTimeText}
-        </div>
-        <div class="small">
-          Ø bester 2h-Wert: ${bestAvgText}
-        </div>
-        <div class="small">
-          Datensätze für diese Tankstelle: ${stationRows.length}
-        </div>
+          <div class="summary-hint">Details anzeigen</div>
+        </summary>
 
-        <div class="chart-wrap">
-          <div class="chart-title">Preisverlauf dieser Tankstelle</div>
-          <canvas class="chart" data-station-id="${station.id}"></canvas>
-          <div class="chart-info">Letzte ${Math.min(CHART_POINTS, stationRows.length)} gespeicherte Werte</div>
+        <div class="station-details">
+          <div class="detail-line"><span class="dim">Beste Zeit für diese Tankstelle:</span> ${bestTimeText}</div>
+          <div class="detail-line"><span class="dim">Ø bester 2h-Wert:</span> ${bestAvgText}</div>
+          <div class="detail-line"><span class="dim">Datengrundlage:</span> ${stationRows.length} Werte</div>
+          <div class="detail-line"><span class="dim">Entfernung:</span> ${typeof station.distanceKm === "number" ? formatDistance(station.distanceKm) : "nicht verfügbar"}</div>
         </div>
-      </div>
+      </details>
     `;
   }).join("");
-
-  requestAnimationFrame(drawStationCharts);
 }
 
 async function loadAndRenderInsights(stations) {
@@ -843,6 +873,68 @@ async function loadAndRenderInsights(stations) {
   }
 }
 
+async function maybeAskForLocationOnFirstOpen() {
+  if (!navigator.geolocation) {
+    updateLocationStatus();
+    return;
+  }
+
+  try {
+    if (navigator.permissions && navigator.permissions.query) {
+      const permission = await navigator.permissions.query({ name: "geolocation" });
+
+      if (permission.state === "granted") {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            userLocation = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            };
+            updateLocationStatus();
+            await updatePrices();
+          },
+          () => {
+            userLocation = null;
+            updateLocationStatus();
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+        );
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn("Permissions API nicht verfügbar oder Fehler:", e);
+  }
+
+  const alreadyRequested = localStorage.getItem(LOCATION_REQUEST_KEY);
+  if (alreadyRequested) {
+    updateLocationStatus();
+    return;
+  }
+
+  localStorage.setItem(LOCATION_REQUEST_KEY, "1");
+
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      userLocation = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude
+      };
+      updateLocationStatus();
+      await updatePrices();
+    },
+    () => {
+      userLocation = null;
+      updateLocationStatus();
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 300000
+    }
+  );
+}
+
 async function updatePrices() {
   setLoadingState(true);
 
@@ -864,22 +956,39 @@ async function updatePrices() {
 
     const apiStations = data.stations || [];
 
-    const stations = MY_STATIONS
-      .map(my => {
+    const rawStations = MY_STATIONS
+      .map((my, index) => {
         const api = apiStations.find(s => String(s.id) === String(my.id));
 
         if (!api || !api.isOpen || typeof api.price !== "number") {
           return null;
         }
 
+        let distanceKm = null;
+        if (
+          userLocation &&
+          typeof api.lat === "number" &&
+          typeof api.lng === "number"
+        ) {
+          distanceKm = haversineKm(
+            userLocation.lat,
+            userLocation.lng,
+            api.lat,
+            api.lng
+          );
+        }
+
         return {
           id: my.id,
           name: my.name,
-          price: Number(api.price)
+          price: Number(api.price),
+          distanceKm,
+          originalIndex: index
         };
       })
-      .filter(Boolean)
-      .sort((a, b) => a.price - b.price);
+      .filter(Boolean);
+
+    const stations = sortStations(rawStations);
 
     updateLastUpdated();
 
@@ -919,8 +1028,9 @@ async function updatePrices() {
   }
 }
 
+updateLocationStatus();
 updatePrices();
+maybeAskForLocationOnFirstOpen();
 </script>
-
 </body>
 </html>
